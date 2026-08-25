@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+env/
+.venv/
+
+# Horizon runtime dirs (ephemeral on server)
+uploads/
+compressed/
+
+# Desktop-only files (not needed on web)
+main.py
+launch.vbs
+create_shortcut.bat
+make_shortcut.py
+start.bat
+horizon.ico
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

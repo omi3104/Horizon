@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Horizon — PDF Tools Suite</title>
+<style>
+:root{
+  --bg0:#04050e;--bg1:#090c1d;--bg2:#0f1328;--bg3:#161b35;--bg4:#1d2340;
+  --border:#252d55;--border2:#2e3960;
+  --p1:#7c3aed;--p2:#6d28d9;--c1:#06b6d4;--c2:#0891b2;--pink:#ec4899;
+  --grad:linear-gradient(135deg,#7c3aed,#06b6d4);
+  --glow-p:rgba(124,58,237,.35);--glow-c:rgba(6,182,212,.25);
+  --text:#e8edf8;--text2:#a0aec0;--text3:#64748b;
+  --success:#10b981;--warn:#f59e0b;--danger:#ef4444;
+  --success-bg:rgba(16,185,129,.12);--danger-bg:rgba(239,68,68,.12);
+  --radius:14px;--radius-sm:9px;--radius-xs:5px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg0);color:var(--text);display:flex;flex-direction:column}
+
+body::before{content:'';position:fixed;inset:0;z-index:-2;
+  background:radial-gradient(ellipse 70% 50% at 15% 10%,rgba(124,58,237,.18),transparent),
+             radial-gradient(ellipse 50% 40% at 85% 85%,rgba(6,182,212,.13),transparent);
+  animation:aurora 14s ease-in-out infinite alternate}
+@keyframes aurora{0%{filter:blur(0)}50%{filter:blur(2px);transform:scale(1.02)}100%{filter:blur(0)}}
+body::after{content:'';position:fixed;inset:0;z-index:-1;
+  background-image:radial-gradient(rgba(255,255,255,.035) 1px,transparent 1px);
+  background-size:28px 28px;pointer-events:none}
+
+/* ── HEADER ── */
+header{flex-shrink:0;padding:14px 24px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:16px;background:rgba(9,12,29,.7);backdrop-filter:blur(12px)}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-icon{width:40px;height:40px;border-radius:11px;background:var(--grad);
+  display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#fff;letter-spacing:-1px;flex-shrink:0}
+.brand-name{font-size:1.25rem;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.brand-sub{font-size:.7rem;color:var(--text3);margin-top:1px}
+.engine-badge{font-size:.68rem;padding:4px 10px;border-radius:20px;border:1px solid var(--border2);color:var(--text3);background:var(--bg2)}
+.engine-badge.excellent{border-color:rgba(16,185,129,.4);color:#10b981;background:rgba(16,185,129,.08)}
+
+/* ── LAYOUT ── */
+.app-body{display:flex;flex:1;overflow:hidden}
+
+/* ── SIDEBAR ── */
+.sidebar{width:68px;flex-shrink:0;background:rgba(9,12,29,.85);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px;overflow-y:auto}
+.sidebar::-webkit-scrollbar{width:0}
+.tool-btn{width:52px;height:52px;border-radius:12px;border:1px solid transparent;
+  background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:3px;transition:.18s;color:var(--text3);position:relative;padding:0}
+.tool-btn:hover{background:var(--bg3);color:var(--text2);border-color:var(--border)}
+.tool-btn.active{background:linear-gradient(135deg,rgba(124,58,237,.25),rgba(6,182,212,.15));
+  border-color:var(--border2);color:var(--c1)}
+.tool-btn .t-icon{font-size:20px;line-height:1}
+.tool-btn .t-label{font-size:.48rem;font-weight:600;letter-spacing:.02em;text-transform:uppercase;line-height:1}
+.sidebar-sep{width:36px;height:1px;background:var(--border);margin:6px 0;flex-shrink:0}
+
+/* ── MAIN AREA ── */
+.main-area{flex:1;overflow-y:auto;padding:24px}
+.main-area::-webkit-scrollbar{width:6px}
+.main-area::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* ── TOOL PANEL ── */
+.tool-panel{display:none;max-width:900px;margin:0 auto}
+.tool-panel.active{display:block}
+.panel-head{margin-bottom:20px}
+.panel-head h2{font-size:1.3rem;font-weight:700;display:flex;align-items:center;gap:10px;margin-bottom:5px}
+.panel-head p{color:var(--text3);font-size:.82rem}
+
+/* ── CARDS & GLASS ── */
+.card{background:rgba(15,19,40,.7);border:1px solid var(--border);border-radius:var(--radius);
+  backdrop-filter:blur(8px);padding:20px;margin-bottom:16px}
+
+/* ── DROP ZONE ── */
+.drop-zone{border:2px dashed var(--border2);border-radius:var(--radius);padding:32px 20px;
+  text-align:center;cursor:pointer;transition:.2s;color:var(--text3);font-size:.85rem;
+  background:rgba(9,12,29,.4)}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--c1);background:rgba(6,182,212,.06);color:var(--text2)}
+.drop-zone .dz-icon{font-size:32px;margin-bottom:8px}
+.drop-zone strong{color:var(--text2)}
+.drop-zone small{display:block;margin-top:4px;font-size:.75rem}
+
+/* ── FILE LIST (merge / images) ── */
+.file-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.file-chip{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);
+  border-radius:8px;padding:5px 10px;font-size:.75rem;color:var(--text2)}
+.file-chip button{background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:0;line-height:1}
+.file-chip button:hover{color:var(--danger)}
+
+/* ── SETTINGS ROW ── */
+.settings-row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:5px;flex:1;min-width:140px}
+.field label{font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.field input,.field select,.field textarea{
+  background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-xs);
+  color:var(--text);padding:8px 10px;font-size:.83rem;font-family:inherit;outline:none;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--c1);box-shadow:0 0 0 2px var(--glow-c)}
+.field textarea{resize:vertical;min-height:60px}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 20px;
+  border-radius:var(--radius-sm);border:none;cursor:pointer;font-size:.83rem;font-weight:600;
+  font-family:inherit;transition:.18s}
+.btn-primary{background:var(--grad);color:#fff;box-shadow:0 4px 14px var(--glow-p)}
+.btn-primary:hover{opacity:.88;transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn-outline{background:transparent;color:var(--text2);border:1px solid var(--border2)}
+.btn-outline:hover{border-color:var(--c1);color:var(--c1)}
+.btn-sm{padding:7px 14px;font-size:.78rem}
+
+/* ── PROGRESS ── */
+.prog-wrap{margin-top:14px}
+.prog-header{display:flex;justify-content:space-between;font-size:.75rem;color:var(--text3);margin-bottom:5px}
+.prog-track{height:5px;background:var(--bg4);border-radius:3px;overflow:hidden}
+.prog-bar{height:100%;background:var(--grad);border-radius:3px;transition:width .4s ease;width:0}
+
+/* ── RESULT AREA ── */
+.result-box{margin-top:14px;padding:14px 16px;background:var(--success-bg);
+  border:1px solid rgba(16,185,129,.3);border-radius:var(--radius-sm);display:flex;
+  align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.result-box.error{background:var(--danger-bg);border-color:rgba(239,68,68,.3)}
+.result-info{font-size:.82rem;color:var(--text2)}
+.result-info strong{color:var(--text)}
+
+/* ── COMPRESS PANEL specific ── */
+.preset-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.preset{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:12px;cursor:pointer;transition:.18s}
+.preset:hover{border-color:var(--border2);background:var(--bg3)}
+.preset.active{border-color:var(--c1);background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(6,182,212,.08))}
+.preset-icon{font-size:18px;margin-bottom:6px}
+.preset-name{font-size:.75rem;font-weight:700;color:var(--text)}
+.preset-desc{font-size:.65rem;color:var(--text3);margin-top:2px}
+.fc-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.fc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px}
+.fc-row{display:flex;align-items:center;gap:10px}
+.fc-info{flex:1;min-width:0}
+.fc-name{font-size:.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fc-sz{font-size:.7rem;color:var(--text3)}
+.fc-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.badge{font-size:.65rem;padding:3px 8px;border-radius:20px;font-weight:600;white-space:nowrap}
+.badge-idle{background:var(--bg4);color:var(--text3);border:1px solid var(--border)}
+.badge-busy{background:rgba(245,158,11,.12);color:var(--warn);border:1px solid rgba(245,158,11,.3)}
+.badge-done{background:var(--success-bg);color:var(--success);border:1px solid rgba(16,185,129,.3)}
+.badge-err {background:var(--danger-bg);color:var(--danger);border:1px solid rgba(239,68,68,.3)}
+.ibtn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);
+  background:var(--bg3);color:var(--text3);cursor:pointer;font-size:13px;transition:.15s;
+  display:flex;align-items:center;justify-content:center}
+.ibtn:hover{border-color:var(--c1);color:var(--c1)}
+.prog-area{margin-top:8px}
+.fc-result{margin-top:8px;font-size:.75rem;color:var(--text2);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dl-link{padding:4px 12px;border-radius:6px;background:var(--grad);color:#fff;
+  font-size:.72rem;font-weight:600;cursor:pointer;border:none;font-family:inherit}
+.ratio-chip{padding:3px 8px;border-radius:10px;background:var(--success-bg);
+  color:var(--success);font-size:.65rem;font-weight:700;border:1px solid rgba(16,185,129,.25)}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;text-align:center}
+.stat-val{font-size:1.3rem;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat-lbl{font-size:.65rem;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.toolbar{display:flex;gap:8px;margin-bottom:14px}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);
+  padding:10px 20px;font-size:.82rem;color:var(--text);z-index:999;
+  transition:transform .3s,opacity .3s;opacity:0;pointer-events:none;white-space:nowrap}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+/* ── SCROLLBAR compress list ── */
+.fc-list-wrap{max-height:380px;overflow-y:auto;padding-right:4px}
+.fc-list-wrap::-webkit-scrollbar{width:4px}
+.fc-list-wrap::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+@media(max-width:640px){.preset-grid{grid-template-columns:repeat(2,1fr)}.stats-row{grid-template-columns:repeat(2,1fr)}}
+
+/* ── EDIT PDF ── */
+.ep-pages-wrap{display:flex;flex-direction:column;gap:16px;max-height:520px;overflow-y:auto;padding:4px 2px}
+.ep-pages-wrap::-webkit-scrollbar{width:5px}
+.ep-pages-wrap::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.ep-page-wrap{position:relative;background:#e8e8e8;border-radius:8px;overflow:hidden;border:1px solid var(--border);line-height:0}
+.ep-page-wrap img{display:block;width:100%}
+.ep-page-label{position:absolute;top:6px;right:8px;background:rgba(0,0,0,.55);color:#fff;font-size:.62rem;padding:2px 7px;border-radius:4px;pointer-events:none}
+.ep-block{position:absolute;cursor:pointer;box-sizing:border-box;border:1px solid transparent;border-radius:2px;transition:border-color .15s,background .15s}
+.ep-block:hover{border-color:rgba(6,182,212,.7)!important;background:rgba(6,182,212,.08)!important}
+.ep-block.edited{border-color:var(--c1)!important;background:rgba(6,182,212,.12)!important}
+.ep-spinner{width:18px;height:18px;border:2px solid var(--border2);border-top-color:var(--c1);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="brand">
+    <div class="brand-icon">H</div>
+    <div>
+      <div class="brand-name">HORIZON</div>
+      <div class="brand-sub">PDF Tools Suite</div>
+    </div>
+  </div>
+  <div id="engine-badge" class="engine-badge">Checking engine…</div>
+</header>
+
+<div class="app-body">
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <button class="tool-btn active" data-tool="compress" title="Compress PDF">
+    <span class="t-icon">🗜️</span><span class="t-label">Compress</span>
+  </button>
+  <button class="tool-btn" data-tool="merge" title="Merge PDFs">
+    <span class="t-icon">🔗</span><span class="t-label">Merge</span>
+  </button>
+  <button class="tool-btn" data-tool="split" title="Split PDF">
+    <span class="t-icon">✂️</span><span class="t-label">Split</span>
+  </button>
+  <div class="sidebar-sep"></div>
+  <button class="tool-btn" data-tool="pdf2img" title="PDF → Images">
+    <span class="t-icon">🖼️</span><span class="t-label">PDF→Img</span>
+  </button>
+  <button class="tool-btn" data-tool="img2pdf" title="Images → PDF">
+    <span class="t-icon">📷</span><span class="t-label">Img→PDF</span>
+  </button>
+  <button class="tool-btn" data-tool="pdf2word" title="PDF → Word">
+    <span class="t-icon">📝</span><span class="t-label">PDF→Word</span>
+  </button>
+  <div class="sidebar-sep"></div>
+  <button class="tool-btn" data-tool="protect" title="Password Protect">
+    <span class="t-icon">🔒</span><span class="t-label">Protect</span>
+  </button>
+  <button class="tool-btn" data-tool="unlock" title="Remove Password">
+    <span class="t-icon">🔓</span><span class="t-label">Unlock</span>
+  </button>
+  <div class="sidebar-sep"></div>
+  <button class="tool-btn" data-tool="flatten" title="Scan Look">
+    <span class="t-icon">📄</span><span class="t-label">Scan</span>
+  </button>
+  <button class="tool-btn" data-tool="watermark" title="Add Watermark">
+    <span class="t-icon">💧</span><span class="t-label">Watermark</span>
+  </button>
+  <button class="tool-btn" data-tool="rotate" title="Rotate Pages">
+    <span class="t-icon">🔄</span><span class="t-label">Rotate</span>
+  </button>
+  <div class="sidebar-sep"></div>
+  <button class="tool-btn" data-tool="editpdf" title="Edit PDF">
+    <span class="t-icon">✏️</span><span class="t-label">Edit PDF</span>
+  </button>
+</nav>
+
+<!-- MAIN AREA -->
+<main class="main-area">
+
+<!-- ══ COMPRESS ══ -->
+<div class="tool-panel active" id="panel-compress">
+  <div class="panel-head">
+    <h2>🗜️ Compress PDF</h2>
+    <p>Reduce PDF file size while preserving quality. Works on any PDF including Foxit/Adobe optimised files.</p>
+  </div>
+
+  <div class="card">
+    <div class="preset-grid">
+      <div class="preset" data-preset="light"><div class="preset-icon">🌟</div><div class="preset-name">Light</div><div class="preset-desc">Max quality · 20–45% smaller</div></div>
+      <div class="preset active" data-preset="balanced"><div class="preset-icon">⚖️</div><div class="preset-name">Balanced</div><div class="preset-desc">Great quality · 50–75% smaller</div></div>
+      <div class="preset" data-preset="aggressive"><div class="preset-icon">🔥</div><div class="preset-name">Aggressive</div><div class="preset-desc">High compression · 70–90%</div></div>
+      <div class="preset" data-preset="maximum"><div class="preset-icon">💥</div><div class="preset-name">Maximum</div><div class="preset-desc">Smallest file · up to 99%</div></div>
+    </div>
+
+    <div id="c-dz" class="drop-zone">
+      <div class="dz-icon">📂</div>
+      <strong>Drop PDF files here</strong> or click to browse
+      <small>Unlimited files · No size limit · Nothing leaves your PC</small>
+      <input type="file" id="c-file-input" accept=".pdf" multiple style="display:none">
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-val" id="s-files">0</div><div class="stat-lbl">Processed</div></div>
+    <div class="stat-card"><div class="stat-val" id="s-saved">0 B</div><div class="stat-lbl">Space Saved</div></div>
+    <div class="stat-card"><div class="stat-val" id="s-best">—</div><div class="stat-lbl">Best Ratio</div></div>
+    <div class="stat-card"><div class="stat-val" id="s-queue">0</div><div class="stat-lbl">In Queue</div></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn btn-primary btn-sm" id="btn-compress">⚡ Compress All</button>
+    <button class="btn btn-outline btn-sm" id="btn-dl-all" disabled>⬇ Download All</button>
+    <button class="btn btn-outline btn-sm" id="btn-clear" disabled>🗑 Clear</button>
+  </div>
+
+  <div class="fc-list-wrap">
+    <div class="fc-list" id="fc-list">
+      <div id="c-empty" style="text-align:center;padding:32px;color:var(--text3);font-size:.82rem">
+        📂 No files yet — drop PDFs above to begin
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MERGE ══ -->
+<div class="tool-panel" id="panel-merge">
+  <div class="panel-head"><h2>🔗 Merge PDFs</h2><p>Combine multiple PDF files into one document in any order.</p></div>
+  <div class="card">
+    <div id="mg-dz" class="drop-zone">
+      <div class="dz-icon">📎</div>
+      <strong>Drop PDF files here</strong> or click to browse
+      <small>Add multiple files — they'll merge in the order shown below</small>
+      <input type="file" id="mg-input" accept=".pdf" multiple style="display:none">
+    </div>
+    <div class="file-chips" id="mg-chips"></div>
+  </div>
+  <div class="settings-row">
+    <div class="field"><label>Output filename</label><input type="text" id="mg-outname" value="merged.pdf"></div>
+  </div>
+  <button class="btn btn-primary" id="btn-merge">🔗 Merge PDFs</button>
+  <div id="mg-prog" class="prog-wrap" style="display:none">
+    <div class="prog-header"><span>Merging…</span><span id="mg-pct">0%</span></div>
+    <div class="prog-track"><div class="prog-bar" id="mg-bar"></div></div>
+  </div>
+  <div id="mg-result"></div>
+</div>
+
+<!-- ══ SPLIT ══ -->
+<div class="tool-panel" id="panel-split">
+  <div class="panel-head"><h2>✂️ Split PDF</h2><p>Extract individual pages or page ranges into separate PDF files.</p></div>
+  <div class="card">
+    <div id="sp-dz" class="drop-zone">
+      <div class="dz-icon">📄</div>
+      <strong>Drop a PDF here</strong> or click to browse
+      <input type="file" id="sp-input" accept=".pdf" style="display:none">
+    </div>
+    <div id="sp-fname" style="margin-top:10px;font-size:.78rem;color:var(--text3)"></div>
+  </div>
+  <div class="settings-row">
+    <div class="field"><label>Mode</label>
+      <select id="sp-mode">
+        <option value="each">One file per page</option>
+        <option value="range">Custom page ranges</option>
+      </select>
+    </div>
+    <div class="field" id="sp-ranges-wrap" style="display:none">
+      <label>Ranges (e.g. 1-3,4-6)</label>
+      <input type="text" id="sp-ranges" placeholder="1-3,4-6,7-10">
+    </div>
+  </div>
+  <button class="btn btn-primary" id="btn-split">✂️ Split PDF</button>
+  <div id="sp-prog" class="prog-wrap" style="display:none">
+    <div class="prog-header"><span>Splitting…</span><span id="sp-pct">0%</span></div>
+    <div class="prog-track"><div class="prog-bar" id="sp-bar"></div></div>
+  </div>
+  <div id="sp-result"></div>
+</div>
+
+<!-- ══ PDF → IMAGES ══ -->
+<div class="tool-panel" id="panel-pdf2img">
+  <div class="panel-head"><h2>🖼️ PDF → Images</h2><p>Convert each PDF page to a high-quality image.</p></div>
+  <div class="card">
+    <div id="pi-dz" class="drop-zone">
+      <div class="dz-icon">📄</div>
+      <strong>Drop a PDF here</strong> or click to browse
+      <input type="file" id="pi-input" accept=".pdf" style="display:none">
+    </div>
+    <div id="pi-fname" style="margin-top:10px;font-size:.78rem;color:var(--text3)"></div>
+  </div>
+  <div class="settings-row">
+    <div class="field"><label>Format</label>
+      <select id="pi-fmt">
+        <option value="PNG">PNG (lossless)</option>
+        <option value="JPG">JPG (smaller)</option>
+      </select>
+    </div>
+    <div class="field"><label>Resolution (DPI)</label>
+      <select id="pi-dpi">
+        <option value="96">96 DPI — screen</option>
+        <option value="150" selected>150 DPI — standard</option>
+        <option value="200">200 DPI — high</option>
+        <option value="300">300 DPI — print quality</option>
+      </select>
+    </div>
+  </div>
+  <button class="btn btn-primary" id="btn-pdf2img">🖼️ Convert to Images</button>
+  <div id="pi-prog" class="prog-wrap" style="display:none">
+    <div class="prog-header"><span>Converting…</span><span id="pi-pct">0%</span></div>
+    <div class="prog-track"><div class="prog-bar" id="pi-bar"></div></div>
+  </div>
+  <div id="pi-result"></div>
+</div>
+
+<!-- ══ IMAGES → PDF ══ -->
+<div class="tool-panel" id="panel-img2pdf">
+  <div class="panel-head"><h2>📷 Images → PDF</h2><p>Combine JPG, PNG, or other images into a single PDF document.</p></div>
+  <div class="card">
+    <div id="ip-dz" class="drop-zone">
+      <div class="dz-icon">🖼️</div>
+      <strong>Drop images here</strong> or click to browse
+      <small>JPG, PNG, BMP, TIFF — multiple files allowed</small>
+      <input type="file" id="ip-input" accept="image/*" multiple style="display:none">
+    </div>
+    <div class="file-chips" id="ip-chips"></div>
+  </div>
+  <div class="settings-row">
+    <div class="field"><label>Output filename</label><input type="text" id="ip-outname" value="images.pdf"></div>
+  </div>
+  <button class="btn btn-primary" id="btn-img2pdf">📄 Create PDF</button>
+  <div id="ip-prog" class="prog-wrap" style="display:none">
+    <div class="prog-header"><span>Creating PDF…</span><span id="ip-pct">0%</span></div>
+    <div class="prog-track"><div class="prog-bar" id="ip-bar"></div></div>
+  </div>
+  <div id="ip-result"></div>
+</div>
+
+<!-- ══ PDF → WORD ══ -->
+<div class="tool-panel" id="panel-pdf2word">
+  <div class="panel-head"><h2>📝 PDF → Word</h2><p>Convert PDF to editable Word document. Use OCR mode for scanned/image PDFs.</p></div>
+  <div class="card">
+    <div id="pw-dz" class="drop-zone">
+      <div class="dz-icon">📄</div>
+      <strong>Drop a PDF here</strong> or click to browse
+      <input type="file" id="pw-input" accept=".pdf" style="display:none">
+    </div>
+    <div id="pw-fname" style="margin-top:10px;font-size:.78rem;color:var(--text3)"></div>
+  </div>
+  <div class="settings-row">
+    <div class="field"><label>Conversion mode</label>
+      <select id="pw-mode">
+        <option value="standard">Standard — digital/text PDFs (fast)</option>
+        <option value="ocr">OCR — scanned / image-based PDFs</option>
+      </select>
+    </div>
+  </div>
+  <div id="pw-ocr-status" style="font-size:.72rem;margin-bottom:14px;padding:10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);color:var(--text3)">
+    ⏳ Checking OCR availability…
+  </div>
+  <button class="btn btn-primary" id="btn-pdf2word">📝 Convert to Word</button>
+  <div id="pw-prog" class="prog-wrap" style="display:none">
+    <div class="prog-header"><span>Converting…</span><span id="pw-pct">0%</span></div>
+    <div class="prog-track"><div class="prog-bar" id="pw-bar"></div></div>
+  </div>
+  <div id="pw-result"></div>
+</div>
+
+<!-- ══ PROTECT ══ -->
+<div class="tool-panel" id="panel-protect">
+  <div class="panel-head"><h2>🔒 Password Protect PDF</h2><p>Encrypt your PDF with AES-256 password protection.</p></div>
+  <div class="card">
+    <div id="pt-dz" class="drop-zone">
+      <div class="dz-icon">📄</div>
+      <strong>Drop a PDF here</strong> or click to browse
+      <input type="file" id="pt-input" accept=".pdf" style="display:none">
+    </div>
+    <div id="pt-fname" style="margin-top:10px;font-size:.78rem;color:var(--text3)"></div>
+  </div>
+  <div class="settings-row">
+    <div class="field"><label>Password</label><input type="password" id="pt-pw" placeholder="Enter password"></div>
+    <div class="field"><label>Confirm password</label><input type="password" id="pt-pw2" placeholder="Confirm password"></div>
+  </div>
+  <button class="btn btn-primary" id="btn-protect">🔒 Protect PDF</button>
+  <div id="pt-prog" class="prog-wrap" style="display:none">
+    <div class="prog-header"><span>Encrypting…</span><span id="pt-pct">0%</span></div>
+    <div class="prog-track"><div class="prog-bar" id="pt-bar"></div></div>
+  </div>
+  <div id="pt-result"></div>
+</div>
+
+<!-- ══ UNLOCK ══ -->
+<div class="tool-panel" id="panel-unlock">
+  <div class="panel-head"><h2>🔓 Remove PDF Password</h2><p>Unlock a password-protected PDF (you must know the password).</p></div>
+  <div class="card">
+    <div id="ul-dz" class="drop-zone">
+      <div class="dz-icon">🔐</div>
+      <strong>Drop a protected PDF here</strong> or click to browse
+      <input type="file" id="ul-input" accept=".pdf" style="display:none">
+    </div>
+    <div id="ul-fname" style="margin-top:10px;font-size:.78rem;color:var(--text3)"></div>
+  </div>
+  <div class="settings-row">
+    <div class="field"><label>Current password</label><input type="password" id="ul-pw" placeholder="Enter PDF password"></div>
+  </div>
+  <button class="btn btn-primary" id="btn-unlock">🔓 Unlock PDF</button>
+  <div id="ul-prog" class="prog-wrap" style="display:none">
+    <div class="prog-header"><span>Unlocking…</span><span id="ul-pct">0%</span></div>
+    <div class="prog-track"><div class="prog-bar" id="ul-bar"></div></div>
+  </div>
+  <div id="ul-result"></div>
+</div>
+
+<!-- ══ FLATTEN / SCAN LOOK ══ -->
+<div class="tool-panel" id="panel-flatten">
+  <div class="panel-head"><h2>📄 Scan Look</h2><p>Convert PDFs to look like scanned documents. Add multiple files and convert all at once.</p></div>
+  <div class="card">
+    <div id="fl-dz" class="drop-zone">
+      <div class="dz-icon">🖨️</div>
+      <strong>Drop PDFs here</strong> or click to browse — multiple files supported
+      <input type="file" id="fl-input" accept=".pdf" multiple style="display:none">
+    </div>
+    <div id="fl-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;"></div>
+  </div>
+  <div class="settings-row">
+    <div class="field"><label>Style</label>
+      <select id="fl-style">
+        <option value="scan">Scan — grayscale, slight drift, JPEG grain</option>
+        <option value="print">Print — colour, clean, flat (non-editable)</option>
+      </select>
+    </div>
+  </div>
+  <button class="btn btn-primary" id="btn-flatten">📄 Convert All</button>
+  <div id="fl-result" style="margin-top:12px;display:flex;flex-direction:column;gap:8px;"></div>
+</div>
+
+<!-- ══ WATERMARK ══ -->
+<div class="tool-panel" id="panel-watermark">
+  <div class="panel-head"><h2>💧 Add Watermark</h2><p>Add diagonal text watermark to every page of a PDF.</p></div>
+  <div class="card">
+    <div id="wm-dz" class="drop-zone">
+      <div class="dz-icon">📄</div>
+      <strong>Drop a PDF here</strong> or click to browse
+      <input type="file" id="wm-input" accept=".pdf" style="display:none">
+    </div>
+    <div id="wm-fname" style="margin-top:10px;font-size:.78rem;color:var(--text3)"></div>
+  </div>
+  <div class="settings-row">
+    <div class="field" style="flex:2"><label>Watermark text</label><input type="text" id="wm-text" value="CONFIDENTIAL" placeholder="e.g. DRAFT, CONFIDENTIAL"></div>
+    <div class="field"><label>Font size</label>
+      <select id="wm-size">
+        <option value="20">Small</option>
+        <option value="30" selected>Medium</option>
+        <option value="42">Large</option>
+      </select>
+    </div>
+  </div>
+  <button class="btn btn-primary" id="btn-watermark">💧 Add Watermark</button>
+  <div id="wm-prog" class="prog-wrap" style="display:none">
+    <div class="prog-header"><span>Adding watermark…</span><span id="wm-pct">0%</span></div>
+    <div class="prog-track"><div class="prog-bar" id="wm-bar"></div></div>
+  </div>
+  <div id="wm-result"></div>
+</div>
+
+<!-- ══ ROTATE ══ -->
+<div class="tool-panel" id="panel-rotate">
+  <div class="panel-head"><h2>🔄 Rotate Pages</h2><p>Rotate all pages in a PDF by 90°, 180°, or 270°.</p></div>
+  <div class="card">
+    <div id="rt-dz" class="drop-zone">
+      <div class="dz-icon">📄</div>
+      <strong>Drop a PDF here</strong> or click to browse
+      <input type="file" id="rt-input" accept=".pdf" style="display:none">
+    </div>
+    <div id="rt-fname" style="margin-top:10px;font-size:.78rem;color:var(--text3)"></div>
+  </div>
+  <div class="settings-row">
+    <div class="field"><label>Rotation</label>
+      <select id="rt-angle">
+        <option value="90">90° clockwise</option>
+        <option value="180">180° (flip)</option>
+        <option value="270">270° (90° counter-clockwise)</option>
+      </select>
+    </div>
+  </div>
+  <button class="btn btn-primary" id="btn-rotate">🔄 Rotate PDF</button>
+  <div id="rt-prog" class="prog-wrap" style="display:none">
+    <div class="prog-header"><span>Rotating…</span><span id="rt-pct">0%</span></div>
+    <div class="prog-track"><div class="prog-bar" id="rt-bar"></div></div>
+  </div>
+  <div id="rt-result"></div>
+</div>
+
+<!-- ══ EDIT PDF ══ -->
+<div class="tool-panel" id="panel-editpdf">
+  <div class="panel-head"><h2>✏️ Edit PDF</h2><p>Click on any text block in the PDF to edit it. Changes are applied and saved as a new PDF.</p></div>
+  <div class="card" id="ep-upload-card">
+    <div id="ep-dz" class="drop-zone">
+      <div class="dz-icon">📄</div>
+      <strong>Drop a PDF here</strong> or click to browse
+      <input type="file" id="ep-input" accept=".pdf" style="display:none">
+    </div>
+    <div id="ep-fname" style="margin-top:10px;font-size:.78rem;color:var(--text3)"></div>
+  </div>
+  <div id="ep-loading" style="display:none;align-items:center;gap:10px;padding:18px;color:var(--text2)">
+    <div class="ep-spinner"></div> Analysing PDF and rendering pages…
+  </div>
+  <div id="ep-editor" style="display:none">
+    <div style="font-size:.72rem;color:var(--text3);padding:8px 12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);margin-bottom:12px">
+      💡 Hover over text to highlight it. <strong>Click any text block</strong> to open an edit popup. Edited blocks are outlined in cyan.
+    </div>
+    <div id="ep-pages" class="ep-pages-wrap"></div>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
+      <button class="btn btn-primary" id="btn-ep-save">💾 Save Edited PDF</button>
+      <button class="btn" id="btn-ep-reset-all" style="font-size:.78rem">↩ Reset All Changes</button>
+      <span id="ep-edit-count" style="font-size:.75rem;color:var(--text3);margin-left:auto"></span>
+    </div>
+    <div id="ep-prog" class="prog-wrap" style="display:none">
+      <div class="prog-header"><span>Saving…</span><span id="ep-pct">0%</span></div>
+      <div class="prog-track"><div class="prog-bar" id="ep-bar"></div></div>
+    </div>
+    <div id="ep-result"></div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<div id="ep-popup-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900" onclick="closeEpPopup()"></div>
+<div id="ep-popup" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:22px;z-index:901;width:440px;max-width:94vw;box-shadow:0 24px 70px rgba(0,0,0,.6)">
+  <div style="font-size:.73rem;color:var(--text3);margin-bottom:8px" id="ep-popup-label">Edit text block</div>
+  <textarea id="ep-popup-ta" rows="5" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);padding:10px;font-size:.85rem;resize:vertical;font-family:inherit"></textarea>
+  <div style="display:flex;gap:8px;margin-top:12px">
+    <button class="btn btn-primary btn-sm" onclick="applyEpEdit()">✓ Apply</button>
+    <button class="btn btn-sm" onclick="closeEpPopup()">Cancel</button>
+    <button class="btn btn-sm" id="ep-popup-reset" style="margin-left:auto;color:var(--warn);display:none" onclick="resetEpBlock()">↩ Reset</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  GLOBALS
+// ═══════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function humanSize(n){const u=['B','KB','MB','GB'];for(const x of u){if(n<1024)return n.toFixed(1)+' '+x;n/=1024;}return n.toFixed(1)+' TB';}
+
+let cFiles=[], cJobs={}, cPolls={}, cPreset='balanced';
+
+// ═══════════════════════════════════════════════════════
+//  SYSTEM CHECK
+// ═══════════════════════════════════════════════════════
+(async()=>{
+  try{
+    const c = await apiFetch('/api/system');
+    const el = $('engine-badge');
+    el.textContent = c.engine_str;
+    if(c.level==='excellent') el.className='engine-badge excellent';
+
+    // Dynamic OCR status in PDF→Word panel
+    const ocrEl = $('pw-ocr-status');
+    if(ocrEl){
+      const tess = c.tools && c.tools.tesseract;
+      const pyts = c.tools && c.tools.pytesseract;
+      if(tess && pyts){
+        ocrEl.style.color='var(--success)';
+        ocrEl.style.borderColor='rgba(16,185,129,.35)';
+        ocrEl.style.background='var(--success-bg)';
+        ocrEl.innerHTML='✅ <strong>Tesseract OCR is ready.</strong> Both Standard and OCR modes are available.';
+      } else if(tess && !pyts){
+        ocrEl.style.color='var(--warn)';
+        ocrEl.style.borderColor='rgba(245,158,11,.35)';
+        ocrEl.innerHTML='⚠️ Tesseract binary found but <strong>pytesseract</strong> Python package is missing. Run <strong>install.bat</strong> then restart Horizon.';
+      } else {
+        ocrEl.innerHTML='💡 <strong>OCR mode</strong> requires Tesseract on your PC (<a href="https://github.com/UB-Mannheim/tesseract/wiki" target="_blank" style="color:var(--c1)">download here</a>). Without it, OCR falls back to text extraction.';
+      }
+    }
+  }catch(e){}
+})();
+
+// ═══════════════════════════════════════════════════════
+//  SIDEBAR NAVIGATION
+// ═══════════════════════════════════════════════════════
+document.querySelectorAll('.tool-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tool-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    $('panel-'+btn.dataset.tool).classList.add('active');
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+//  COMPRESS TOOL
+// ═══════════════════════════════════════════════════════
+// Drop zone
+setupDropZone($('c-dz'), $('c-file-input'), files=>{
+  const pdfs = [...files].filter(f=>f.name.toLowerCase().endsWith('.pdf'));
+  if(!pdfs.length){toast('Only PDF files are supported.');return;}
+  uploadFiles(pdfs);
+});
+
+async function uploadFiles(list){
+  const fd = new FormData();
+  list.forEach(f=>fd.append('files',f));
+  try{
+    const d = await fetch('/api/upload',{method:'POST',body:fd}).then(r=>r.json());
+    if(d.error){toast(d.error);return;}
+    d.files.forEach(f=>{cFiles.push(f);renderCompressCard(f);});
+    $('c-empty') && ($('c-empty').style.display='none');
+    updateStats(); updateBtns();
+  }catch(e){toast('Upload error: '+e.message);}
+}
+
+// Presets
+document.querySelectorAll('.preset').forEach(el=>{
+  el.addEventListener('click',()=>{
+    document.querySelectorAll('.preset').forEach(e=>e.classList.remove('active'));
+    el.classList.add('active'); cPreset=el.dataset.preset;
+  });
+});
+
+function renderCompressCard(f){
+  const list=$('fc-list');
+  const d=document.createElement('div');
+  d.className='fc'; d.id='fc-'+f.id;
+  d.innerHTML=`
+    <div class="fc-row">
+      <div style="font-size:20px">📄</div>
+      <div class="fc-info">
+        <div class="fc-name" title="${esc(f.name)}">${esc(f.name)}</div>
+        <div class="fc-sz">${f.size_human}</div>
+      </div>
+      <div class="fc-right">
+        <span class="badge badge-idle" id="bdg-${f.id}">Ready</span>
+        <button class="ibtn" title="Compress" onclick="compressOne('${f.id}')">⚡</button>
+        <button class="ibtn" title="Remove" onclick="removeFile('${f.id}')">✕</button>
+      </div>
+    </div>
+    <div id="prog-area-${f.id}" style="display:none">
+      <div class="prog-area">
+        <div class="prog-header"><span id="prog-lbl-${f.id}">Compressing…</span><span id="prog-pct-${f.id}">0%</span></div>
+        <div class="prog-track"><div class="prog-bar" id="prog-bar-${f.id}"></div></div>
+      </div>
+    </div>
+    <div id="res-${f.id}"></div>`;
+  list.appendChild(d);
+}
+
+$('btn-compress').addEventListener('click',()=>{
+  const ready=cFiles.filter(f=>{const j=Object.values(cJobs).find(j=>j.fileId===f.id);return !j||j.status==='error';});
+  if(!ready.length){toast('No files to compress.');return;}
+  ready.forEach(f=>startCompress(f));
+});
+
+async function compressOne(fid){const f=cFiles.find(f=>f.id===fid);if(f)await startCompress(f);}
+
+async function startCompress(f){
+  if(Object.values(cJobs).find(j=>j.fileId===f.id&&j.status==='compressing')) return;
+  setBadge(f.id,'busy','⏳ Processing'); showProg(f.id,5,'Compressing…');
+  try{
+    const r=await apiFetch('/api/compress',{file_id:f.id,file_name:f.name,file_path:f.path,preset:cPreset});
+    if(r.error){setBadge(f.id,'error','✗ Error');hideProg(f.id);toast(r.error);return;}
+    cJobs[r.job_id]={fileId:f.id,jobId:r.job_id,status:'compressing'};
+    pollJob(f.id,r.job_id);
+  }catch(e){setBadge(f.id,'error','✗ Error');hideProg(f.id);toast(e.message);}
+}
+
+function pollJob(fileId,jobId){
+  if(cPolls[jobId]) clearInterval(cPolls[jobId]);
+  cPolls[jobId]=setInterval(async()=>{
+    try{
+      const j=await apiFetch(`/api/status/${jobId}`);
+      Object.assign(cJobs[jobId],j);
+      if(j.progress) showProg(fileId,j.progress,j.progress<100?'Compressing…':'Finalizing…');
+      if(j.status==='done'){clearInterval(cPolls[jobId]);onCompressDone(fileId,jobId,j);}
+      else if(j.status==='error'){clearInterval(cPolls[jobId]);setBadge(fileId,'error','✗ Error');hideProg(fileId);toast('Error: '+(j.error||'Failed'));}
+    }catch(e){}
+  },700);
+}
+
+function onCompressDone(fileId,jobId,j){
+  setBadge(fileId,'done','✓ Done'); showProg(fileId,100,'Done');
+  setTimeout(()=>hideProg(fileId),900);
+  $(`res-${fileId}`).innerHTML=`
+    <div class="fc-result">
+      <span>${j.input_size_h} → <strong>${j.output_size_h}</strong></span>
+      <span style="color:var(--text3);font-size:.7rem">(saved ${j.saved_h})</span>
+      <button class="dl-link" onclick="downloadFile('${jobId}','${esc(j.output_name||'')}')">⬇ Download</button>
+      <span class="ratio-chip">${j.ratio}% saved</span>
+    </div>`;
+  updateStats(); updateBtns();
+}
+
+function setBadge(fid,type,txt){
+  const el=$(`bdg-${fid}`); if(!el) return;
+  const map={idle:'badge-idle',busy:'badge-busy',done:'badge-done',error:'badge-err'};
+  el.className='badge '+(map[type]||'badge-idle'); el.textContent=txt;
+}
+function showProg(fid,pct,lbl){
+  const pa=$(`prog-area-${fid}`),pb=$(`prog-bar-${fid}`),pl=$(`prog-lbl-${fid}`),pp=$(`prog-pct-${fid}`);
+  if(pa)pa.style.display='block'; if(pb)pb.style.width=pct+'%';
+  if(pl&&lbl)pl.textContent=lbl; if(pp)pp.textContent=pct+'%';
+}
+function hideProg(fid){const pa=$(`prog-area-${fid}`);if(pa)pa.style.display='none';}
+
+function removeFile(fid){
+  cFiles=cFiles.filter(f=>f.id!==fid);
+  $(`fc-${fid}`)?.remove();
+  Object.entries(cJobs).forEach(([jid,j])=>{
+    if(j.fileId===fid){clearInterval(cPolls[jid]);delete cJobs[jid];}
+  });
+  if(!cFiles.length && $('c-empty')) $('c-empty').style.display='block';
+  updateStats(); updateBtns();
+}
+
+function updateStats(){
+  const done=Object.values(cJobs).filter(j=>j.status==='done');
+  const saved=done.reduce((s,j)=>s+Math.max(0,(j.input_size||0)-(j.output_size||0)),0);
+  const best=done.length?Math.max(...done.map(j=>j.ratio||0)):null;
+  const inQ=cFiles.filter(f=>{const j=Object.values(cJobs).find(j=>j.fileId===f.id);return !j||j.status==='compressing'||j.status==='queued';}).length;
+  $('s-files').textContent=done.length; $('s-saved').textContent=humanSize(saved);
+  $('s-best').textContent=best!==null?best+'%':'—'; $('s-queue').textContent=inQ;
+}
+function updateBtns(){
+  const hasDone=Object.values(cJobs).some(j=>j.status==='done');
+  $('btn-dl-all').disabled=!hasDone; $('btn-clear').disabled=cFiles.length===0;
+}
+
+$('btn-dl-all').addEventListener('click',async()=>{
+  const ids=Object.entries(cJobs).filter(([,j])=>j.status==='done').map(([id])=>id);
+  if(!ids.length) return;
+  const res=await fetch('/api/download-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({job_ids:ids})});
+  const blob=await res.blob(); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='horizon_compressed.zip'; a.click(); URL.revokeObjectURL(url);
+});
+
+$('btn-clear').addEventListener('click',async()=>{
+  const done=Object.entries(cJobs).filter(([,j])=>j.status==='done').map(([i])=>i);
+  if(done.length) await apiFetch('/api/clear',{job_ids:done});
+  Object.values(cPolls).forEach(h=>clearInterval(h));
+  cPolls={}; cJobs={}; cFiles=[];
+  $('fc-list').innerHTML='<div id="c-empty" style="text-align:center;padding:32px;color:var(--text3);font-size:.82rem">📂 No files yet — drop PDFs above to begin</div>';
+  updateStats(); updateBtns();
+});
+
+// ═══════════════════════════════════════════════════════
+//  DOWNLOAD HELPERS
+// ═══════════════════════════════════════════════════════
+async function downloadFile(jobId, fileName){
+  const a=document.createElement('a');
+  a.href=`/api/download/${jobId}`; a.download=fileName||'output';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+// ═══════════════════════════════════════════════════════
+//  GENERIC SIMPLE TOOL HELPER
+// ═══════════════════════════════════════════════════════
+function setupSimpleTool({dzId,inputId,fnameId,progId,barId,pctId,resultId,btnId,endpoint,getPayload,label}){
+  let fileData=null;
+  const dz=$(dzId), inp=$(inputId);
+  setupDropZone(dz, inp, files=>{
+    const f=files[0]; if(!f) return;
+    fileData=null;
+    const fd=new FormData(); fd.append('files',f);
+    fetch('/api/upload',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
+      if(d.error){toast(d.error);return;}
+      fileData=d.files[0];
+      if($(fnameId)) $(fnameId).textContent='📄 '+fileData.name+' ('+fileData.size_human+')';
+    }).catch(e=>toast(e.message));
+  });
+
+  $(btnId).addEventListener('click',async()=>{
+    if(!fileData){toast('Please select a file first.');return;}
+    const payload=getPayload(fileData);
+    if(payload===null) return; // validation failed
+    $(progId).style.display='block'; $(resultId).innerHTML='';
+    $(btnId).disabled=true;
+    try{
+      const r=await apiFetch(endpoint, payload);
+      if(r.error){toast(r.error);$(progId).style.display='none';$(btnId).disabled=false;return;}
+      pollSimple(r.job_id, barId, pctId, resultId, progId, btnId, label);
+    }catch(e){toast(e.message);$(progId).style.display='none';$(btnId).disabled=false;}
+  });
+}
+
+function pollSimple(jid, barId, pctId, resultId, progId, btnId, label){
+  const iv=setInterval(async()=>{
+    try{
+      const j=await apiFetch(`/api/status/${jid}`);
+      if(j.progress){$(barId).style.width=j.progress+'%'; $(pctId).textContent=j.progress+'%';}
+      if(j.status==='done'){
+        clearInterval(iv);
+        $(progId).style.display='none'; $(btnId).disabled=false;
+        $(resultId).innerHTML=`<div class="result-box">
+          <div class="result-info">✅ <strong>${esc(j.output_name)}</strong> — ${j.output_size_h}</div>
+          <button class="btn btn-primary btn-sm" onclick="downloadFile('${jid}','${esc(j.output_name)}')">⬇ Download</button>
+        </div>`;
+      } else if(j.status==='error'){
+        clearInterval(iv);
+        $(progId).style.display='none'; $(btnId).disabled=false;
+        $(resultId).innerHTML=`<div class="result-box error">❌ ${esc(j.error||'Unknown error')}</div>`;
+      }
+    }catch(e){}
+  },700);
+}
+
+// ═══════════════════════════════════════════════════════
+//  MULTI-FILE CHIP HELPER
+// ═══════════════════════════════════════════════════════
+function setupChipDropZone(dzId, inputId, chipsId, accept, fileStore){
+  const dz=$(dzId), inp=$(inputId);
+  setupDropZone(dz, inp, async files=>{
+    const fd=new FormData();
+    [...files].filter(f=>f.name.match(accept)).forEach(f=>fd.append('files',f));
+    const d=await fetch('/api/upload',{method:'POST',body:fd}).then(r=>r.json());
+    if(d.error){toast(d.error);return;}
+    d.files.forEach(f=>{fileStore.push(f);addChip(chipsId,f,fileStore);});
+  });
+}
+
+function addChip(chipsId, f, store){
+  const chips=$(chipsId);
+  const c=document.createElement('div'); c.className='file-chip'; c.id='chip-'+f.id;
+  c.innerHTML=`📄 <span title="${esc(f.name)}">${esc(f.name.length>22?f.name.slice(0,20)+'…':f.name)}</span> <span style="color:var(--text3)">${f.size_human}</span> <button onclick="removeChip('${f.id}','${chipsId}',chipStores['${chipsId}'])">✕</button>`;
+  chips.appendChild(c);
+}
+
+const chipStores={};
+function removeChip(fid, chipsId, store){
+  const idx=store.findIndex(f=>f.id===fid);
+  if(idx!==-1) store.splice(idx,1);
+  $('chip-'+fid)?.remove();
+}
+
+// ═══════════════════════════════════════════════════════
+//  MERGE TOOL
+// ═══════════════════════════════════════════════════════
+const mgFiles=[];
+chipStores['mg-chips']=mgFiles;
+setupChipDropZone('mg-dz','mg-input','mg-chips',/\.pdf$/i,mgFiles);
+
+$('btn-merge').addEventListener('click',async()=>{
+  if(mgFiles.length<2){toast('Add at least 2 PDFs to merge.');return;}
+  $('mg-prog').style.display='block'; $('mg-result').innerHTML='';
+  $('btn-merge').disabled=true;
+  const r=await apiFetch('/api/merge',{
+    paths:mgFiles.map(f=>f.path),
+    output_name:$('mg-outname').value||'merged.pdf'
+  });
+  pollSimple(r.job_id,'mg-bar','mg-pct','mg-result','mg-prog','btn-merge','merge');
+});
+
+// ═══════════════════════════════════════════════════════
+//  SPLIT TOOL
+// ═══════════════════════════════════════════════════════
+let spFile=null;
+setupDropZone($('sp-dz'),$('sp-input'),async files=>{
+  const fd=new FormData(); fd.append('files',files[0]);
+  const d=await fetch('/api/upload',{method:'POST',body:fd}).then(r=>r.json());
+  spFile=d.files[0]; $('sp-fname').textContent='📄 '+spFile.name+' ('+spFile.size_human+')';
+});
+$('sp-mode').addEventListener('change',()=>{
+  $('sp-ranges-wrap').style.display=$('sp-mode').value==='range'?'block':'none';
+});
+$('btn-split').addEventListener('click',async()=>{
+  if(!spFile){toast('Please select a file.');return;}
+  $('sp-prog').style.display='block'; $('sp-result').innerHTML=''; $('btn-split').disabled=true;
+  const r=await apiFetch('/api/split',{path:spFile.path,mode:$('sp-mode').value,ranges:$('sp-ranges').value});
+  pollSimple(r.job_id,'sp-bar','sp-pct','sp-result','sp-prog','btn-split','split');
+});
+
+// ═══════════════════════════════════════════════════════
+//  PDF → IMAGES TOOL
+// ═══════════════════════════════════════════════════════
+setupSimpleTool({
+  dzId:'pi-dz',inputId:'pi-input',fnameId:'pi-fname',progId:'pi-prog',
+  barId:'pi-bar',pctId:'pi-pct',resultId:'pi-result',btnId:'btn-pdf2img',
+  endpoint:'/api/pdf-to-images',label:'pdf2img',
+  getPayload:(f)=>({path:f.path,dpi:$('pi-dpi').value,format:$('pi-fmt').value})
+});
+
+// ═══════════════════════════════════════════════════════
+//  IMAGES → PDF TOOL
+// ═══════════════════════════════════════════════════════
+const ipFiles=[];
+chipStores['ip-chips']=ipFiles;
+setupChipDropZone('ip-dz','ip-input','ip-chips',/\.(jpg|jpeg|png|bmp|tiff|webp)$/i,ipFiles);
+
+$('btn-img2pdf').addEventListener('click',async()=>{
+  if(!ipFiles.length){toast('Add at least one image.');return;}
+  $('ip-prog').style.display='block'; $('ip-result').innerHTML=''; $('btn-img2pdf').disabled=true;
+  const r=await apiFetch('/api/images-to-pdf',{
+    paths:ipFiles.map(f=>f.path),
+    output_name:$('ip-outname').value||'images.pdf'
+  });
+  pollSimple(r.job_id,'ip-bar','ip-pct','ip-result','ip-prog','btn-img2pdf','img2pdf');
+});
+
+// ═══════════════════════════════════════════════════════
+//  PDF → WORD TOOL
+// ═══════════════════════════════════════════════════════
+let pwFile=null;
+setupDropZone($('pw-dz'),$('pw-input'),async files=>{
+  const fd=new FormData(); fd.append('files',files[0]);
+  const d=await fetch('/api/upload',{method:'POST',body:fd}).then(r=>r.json());
+  pwFile=d.files[0]; $('pw-fname').textContent='📄 '+pwFile.name+' ('+pwFile.size_human+')';
+});
+$('btn-pdf2word').addEventListener('click',async()=>{
+  if(!pwFile){toast('Please select a PDF.');return;}
+  $('pw-prog').style.display='block'; $('pw-result').innerHTML=''; $('btn-pdf2word').disabled=true;
+  const ocr=$('pw-mode').value==='ocr';
+  const r=await apiFetch('/api/pdf-to-word',{path:pwFile.path,file_name:pwFile.name,ocr});
+  pollSimple(r.job_id,'pw-bar','pw-pct','pw-result','pw-prog','btn-pdf2word','pdf2word');
+});
+
+// ═══════════════════════════════════════════════════════
+//  PROTECT TOOL
+// ═══════════════════════════════════════════════════════
+let ptFile=null;
+setupDropZone($('pt-dz'),$('pt-input'),async files=>{
+  const fd=new FormData(); fd.append('files',files[0]);
+  const d=await fetch('/api/upload',{method:'POST',body:fd}).then(r=>r.json());
+  ptFile=d.files[0]; $('pt-fname').textContent='📄 '+ptFile.name+' ('+ptFile.size_human+')';
+});
+$('btn-protect').addEventListener('click',async()=>{
+  if(!ptFile){toast('Please select a PDF.');return;}
+  const pw=$('pt-pw').value; const pw2=$('pt-pw2').value;
+  if(!pw){toast('Enter a password.');return;}
+  if(pw!==pw2){toast('Passwords do not match.');return;}
+  $('pt-prog').style.display='block'; $('pt-result').innerHTML=''; $('btn-protect').disabled=true;
+  const r=await apiFetch('/api/protect',{path:ptFile.path,file_name:ptFile.name,password:pw});
+  pollSimple(r.job_id,'pt-bar','pt-pct','pt-result','pt-prog','btn-protect','protect');
+});
+
+// ═══════════════════════════════════════════════════════
+//  UNLOCK TOOL
+// ═══════════════════════════════════════════════════════
+let ulFile=null;
+setupDropZone($('ul-dz'),$('ul-input'),async files=>{
+  const fd=new FormData(); fd.append('files',files[0]);
+  const d=await fetch('/api/upload',{method:'POST',body:fd}).then(r=>r.json());
+  ulFile=d.files[0]; $('ul-fname').textContent='📄 '+ulFile.name+' ('+ulFile.size_human+')';
+});
+$('btn-unlock').addEventListener('click',async()=>{
+  if(!ulFile){toast('Please select a PDF.');return;}
+  $('ul-prog').style.display='block'; $('ul-result').innerHTML=''; $('btn-unlock').disabled=true;
+  const r=await apiFetch('/api/unlock',{path:ulFile.path,file_name:ulFile.name,password:$('ul-pw').value});
+  pollSimple(r.job_id,'ul-bar','ul-pct','ul-result','ul-prog','btn-unlock','unlock');
+});
+
+// ═══════════════════════════════════════════════════════
+//  FLATTEN / SCAN TOOL  — multi-file
+// ═══════════════════════════════════════════════════════
+(function(){
+  const flFiles = [];   // array of {name, path, size_human}
+
+  function renderFlChips(){
+    const c = $('fl-chips'); c.innerHTML = '';
+    flFiles.forEach((f, i) => {
+      const chip = document.createElement('div');
+      chip.className = 'merge-chip';
+      chip.innerHTML = `<span>📄 ${esc(f.name)}</span><button onclick="flRemove(${i})">✕</button>`;
+      c.appendChild(chip);
+    });
+  }
+
+  window.flRemove = (i) => { flFiles.splice(i,1); renderFlChips(); };
+
+  setupDropZone($('fl-dz'), $('fl-input'), async files => {
+    for (const f of files) {
+      const fd = new FormData(); fd.append('files', f);
+      const d = await fetch('/api/upload',{method:'POST',body:fd}).then(r=>r.json());
+      if(d.error){ toast(d.error); continue; }
+      flFiles.push(d.files[0]);
+    }
+    renderFlChips();
+  });
+
+  $('btn-flatten').addEventListener('click', async () => {
+    if(!flFiles.length){ toast('Add at least one PDF.'); return; }
+    const style = $('fl-style').value;
+    $('btn-flatten').disabled = true;
+    $('fl-result').innerHTML = '';
+
+    const doneJobIds = [];   // collects job_ids as each file finishes
+
+    // Create a result card for every file immediately
+    const cards = flFiles.map((f, i) => {
+      const div = document.createElement('div');
+      div.className = 'result-box';
+      div.id = `fl-res-${i}`;
+      div.innerHTML = `<div class="result-info">⏳ <strong>${esc(f.name)}</strong> — queued…</div>`;
+      $('fl-result').appendChild(div);
+      return div;
+    });
+
+    // Kick off all jobs in parallel, poll each independently
+    await Promise.all(flFiles.map(async (f, i) => {
+      try {
+        const r = await apiFetch('/api/flatten', {path:f.path, file_name:f.name, style});
+        if(r.error){ cards[i].innerHTML=`<div class="result-info">❌ ${esc(r.error)}</div>`; return; }
+        await new Promise(resolve => {
+          const iv = setInterval(async () => {
+            const j = await apiFetch(`/api/status/${r.job_id}`);
+            if(j.progress) cards[i].querySelector('.result-info').textContent = `⏳ ${f.name} — ${j.progress}%`;
+            if(j.status==='done'){
+              clearInterval(iv);
+              doneJobIds.push(r.job_id);
+              cards[i].innerHTML = `
+                <div class="result-info">✅ <strong>${esc(j.output_name)}</strong> — ${j.output_size_h}</div>
+                <button class="btn btn-primary btn-sm" onclick="downloadFile('${r.job_id}','${esc(j.output_name)}')">⬇ Download</button>`;
+              resolve();
+            } else if(j.status==='error'){
+              clearInterval(iv);
+              cards[i].innerHTML = `<div class="result-info">❌ ${esc(j.error||'Error')}</div>`;
+              resolve();
+            }
+          }, 700);
+        });
+      } catch(e){ cards[i].innerHTML=`<div class="result-info">❌ ${esc(e.message)}</div>`; }
+    }));
+
+    $('btn-flatten').disabled = false;
+
+    // After all done — inject Download All button if ≥2 files succeeded
+    if(doneJobIds.length >= 2){
+      const dlAllBtn = document.createElement('button');
+      dlAllBtn.className = 'btn btn-outline';
+      dlAllBtn.style.cssText = 'margin-top:8px;width:100%';
+      dlAllBtn.textContent = '⬇ Download All to Folder';
+      dlAllBtn.addEventListener('click', async () => {
+        dlAllBtn.disabled = true;
+        dlAllBtn.textContent = '⏳ Opening folder picker…';
+        try {
+          dlAllBtn.textContent = '⏳ Preparing ZIP…';
+          const res = await fetch('/api/download-batch', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({job_ids: doneJobIds})});
+          if(!res.ok){ throw new Error('Server error ' + res.status); }
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a'); a.href = url; a.download = 'horizon_scan.zip'; a.click(); URL.revokeObjectURL(url);
+          dlAllBtn.textContent = `✅ Downloaded ${doneJobIds.length} file(s)`;
+        } catch(err){
+          toast('Error: ' + err.message);
+          dlAllBtn.disabled = false;
+          dlAllBtn.textContent = '⬇ Download All as ZIP';
+        }
+      });
+      $('fl-result').appendChild(dlAllBtn);
+    }
+  });
+})();
+
+// ═══════════════════════════════════════════════════════
+//  WATERMARK TOOL
+// ═══════════════════════════════════════════════════════
+setupSimpleTool({
+  dzId:'wm-dz',inputId:'wm-input',fnameId:'wm-fname',progId:'wm-prog',
+  barId:'wm-bar',pctId:'wm-pct',resultId:'wm-result',btnId:'btn-watermark',
+  endpoint:'/api/watermark',label:'watermark',
+  getPayload:(f)=>{
+    const t=$('wm-text').value.trim();
+    if(!t){toast('Enter watermark text.');return null;}
+    return {path:f.path,file_name:f.name,text:t,fontsize:parseInt($('wm-size').value)};
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+//  ROTATE TOOL
+// ═══════════════════════════════════════════════════════
+setupSimpleTool({
+  dzId:'rt-dz',inputId:'rt-input',fnameId:'rt-fname',progId:'rt-prog',
+  barId:'rt-bar',pctId:'rt-pct',resultId:'rt-result',btnId:'btn-rotate',
+  endpoint:'/api/rotate',label:'rotate',
+  getPayload:(f)=>({path:f.path,file_name:f.name,angle:parseInt($('rt-angle').value)})
+});
+
+// ═══════════════════════════════════════════════════════
+//  EDIT PDF TOOL
+// ═══════════════════════════════════════════════════════
+let epFile = null;
+let epAnalysis = null;
+let epEdits = {};          // key: "pageN_blockId" → edit object
+let epActiveKey = null;    // block being edited in popup
+let epBlockData = {};      // key: "pageN_blockId" → full block data
+
+setupDropZone($('ep-dz'), $('ep-input'), async files => {
+  const fd = new FormData(); fd.append('files', files[0]);
+  const d = await fetch('/api/upload', {method:'POST', body:fd}).then(r=>r.json());
+  if (d.error) { toast(d.error); return; }
+  epFile = d.files[0];
+  epEdits = {}; epBlockData = {}; epAnalysis = null;
+  $('ep-fname').textContent = '📄 ' + epFile.name + ' (' + epFile.size_human + ')';
+  loadPdfEditor(epFile.path);
+});
+
+async function loadPdfEditor(pdfPath) {
+  $('ep-loading').style.display = 'flex';
+  $('ep-editor').style.display = 'none';
+  $('ep-pages').innerHTML = '';
+  $('ep-result').innerHTML = '';
+  updateEpCount();
+
+  try {
+    const data = await apiFetch('/api/edit-analyze', {path: pdfPath});
+    if (data.error) { toast('Analysis error: ' + data.error); $('ep-loading').style.display='none'; return; }
+    epAnalysis = data;
+
+    for (const page of data.pages) {
+      try {
+        // Fetch returns JSON: {src: "data:image/png;base64,...", width, height}
+        const resp = await fetch(
+          '/api/edit-render?path=' + encodeURIComponent(pdfPath) +
+          '&page=' + page.page + '&dpi=130'
+        );
+        if (!resp.ok) { toast('Render failed page ' + (page.page+1)); continue; }
+        const r = await resp.json();
+        if (r.error) { toast('Render error page ' + (page.page+1) + ': ' + r.error); continue; }
+        buildPageEditor(page, r.src, r.width, r.height);
+      } catch(re) { toast('Page ' + (page.page+1) + ' error: ' + re.message); }
+    }
+  } catch(e) { toast('Failed to load PDF: ' + e.message); }
+
+  $('ep-loading').style.display = 'none';
+  $('ep-editor').style.display = 'block';
+}
+
+function buildPageEditor(pageData, src, imgW, imgH) {
+  const wrap = document.createElement('div');
+  wrap.className = 'ep-page-wrap';
+  wrap.dataset.page = pageData.page;
+
+  // img with explicit width+height HTML attributes — browser knows the intrinsic
+  // dimensions immediately, so height:auto computes correctly without waiting for load.
+  const img = document.createElement('img');
+  img.width  = imgW;   // HTML attribute (intrinsic pixel size)
+  img.height = imgH;   // HTML attribute (intrinsic pixel size)
+  img.style.cssText = 'display:block;width:100%;height:auto;';
+  img.src = src;       // data:image/png;base64,... — inline, no network request
+
+  const lbl = document.createElement('div');
+  lbl.className = 'ep-page-label';
+  lbl.textContent = `Page ${pageData.page + 1}`;
+
+  wrap.appendChild(img);
+  wrap.appendChild(lbl);
+  $('ep-pages').appendChild(wrap);
+
+  // Overlays: percentage positions — zero JS measurement, zero timing dependency.
+  for (const block of pageData.blocks) {
+    const key = `${pageData.page}_${block.id}`;
+    epBlockData[key] = block;
+
+    const el = document.createElement('div');
+    el.className = 'ep-block';
+    el.id = 'epb-' + key;
+    el.style.left   = (block.x0 / pageData.width  * 100) + '%';
+    el.style.top    = (block.y0 / pageData.height * 100) + '%';
+    el.style.width  = ((block.x1 - block.x0) / pageData.width  * 100) + '%';
+    el.style.height = ((block.y1 - block.y0) / pageData.height * 100) + '%';
+    el.title = block.text.substring(0, 60) + (block.text.length > 60 ? '…' : '');
+    el.addEventListener('click', () => openEpPopup(key));
+    wrap.appendChild(el);
+  }
+}
+
+function openEpPopup(key) {
+  epActiveKey = key;
+  const block = epBlockData[key];
+  const edit  = epEdits[key];
+  const currentText = edit ? edit.replacement : block.text;
+
+  $('ep-popup-label').textContent = `Edit text — Page ${parseInt(block.page)+1}`;
+  $('ep-popup-ta').value = currentText;
+  $('ep-popup-reset').style.display = edit ? 'inline-flex' : 'none';
+  $('ep-popup-overlay').style.display = 'block';
+  $('ep-popup').style.display = 'block';
+  setTimeout(() => $('ep-popup-ta').focus(), 60);
+}
+
+function closeEpPopup() {
+  $('ep-popup-overlay').style.display = 'none';
+  $('ep-popup').style.display = 'none';
+  epActiveKey = null;
+}
+
+function applyEpEdit() {
+  if (!epActiveKey) return;
+  const block   = epBlockData[epActiveKey];
+  const newText = $('ep-popup-ta').value;
+  const el      = $('epb-' + epActiveKey);
+
+  if (newText !== block.text) {
+    epEdits[epActiveKey] = {
+      page: block.page,
+      original: block.text,
+      replacement: newText,
+      fontsize: block.fontsize,
+      color: block.color,
+      bbox: [block.x0, block.y0, block.x1, block.y1],
+    };
+    if (el) el.classList.add('edited');
+  } else {
+    delete epEdits[epActiveKey];
+    if (el) el.classList.remove('edited');
+  }
+  updateEpCount();
+  closeEpPopup();
+}
+
+function resetEpBlock() {
+  if (!epActiveKey) return;
+  delete epEdits[epActiveKey];
+  const el = $('epb-' + epActiveKey);
+  if (el) el.classList.remove('edited');
+  updateEpCount();
+  closeEpPopup();
+}
+
+function updateEpCount() {
+  const n = Object.keys(epEdits).length;
+  $('ep-edit-count').textContent = n ? `${n} block${n>1?'s':''} edited` : '';
+}
+
+$('btn-ep-reset-all').addEventListener('click', () => {
+  epEdits = {};
+  document.querySelectorAll('.ep-block.edited').forEach(el => el.classList.remove('edited'));
+  updateEpCount();
+  toast('All changes reset.');
+});
+
+$('btn-ep-save').addEventListener('click', async () => {
+  if (!epFile) { toast('No PDF loaded.'); return; }
+  const editsList = Object.values(epEdits);
+  if (!editsList.length) { toast('No changes made — nothing to save.'); return; }
+  $('ep-prog').style.display = 'block';
+  $('ep-result').innerHTML = '';
+  $('btn-ep-save').disabled = true;
+  try {
+    const r = await apiFetch('/api/edit-save', {
+      path: epFile.path, file_name: epFile.name, edits: editsList
+    });
+    if (r.error) { toast(r.error); $('ep-prog').style.display='none'; $('btn-ep-save').disabled=false; return; }
+    pollSimple(r.job_id, 'ep-bar', 'ep-pct', 'ep-result', 'ep-prog', 'btn-ep-save', 'editpdf');
+  } catch(e) { toast(e.message); $('ep-prog').style.display='none'; $('btn-ep-save').disabled=false; }
+});
+
+// Close popup on Escape
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeEpPopup(); });
+
+// ═══════════════════════════════════════════════════════
+//  SHARED: DROP ZONE SETUP
+// ═══════════════════════════════════════════════════════
+function setupDropZone(dz, inp, onFiles){
+  dz.addEventListener('click',()=>inp.click());
+  inp.addEventListener('change',()=>{
+    // Snapshot to Array BEFORE clearing inp.value — FileList is a live reference
+    // that gets wiped when inp.value='' runs, breaking async multi-file loops
+    const arr = Array.from(inp.files);
+    inp.value = '';
+    if(arr.length) onFiles(arr);
+  });
+  ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag-over');}));
+  ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,()=>dz.classList.remove('drag-over')));
+  dz.addEventListener('drop',e=>{
+    e.preventDefault();
+    const arr = Array.from(e.dataTransfer.files);
+    if(arr.length) onFiles(arr);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  SHARED: API FETCH
+// ═══════════════════════════════════════════════════════
+async function apiFetch(url, body){
+  const opts=body
+    ?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}
+    :{method:'GET'};
+  const r=await fetch(url,opts);
+  return r.json();
+}
+
+// ═══════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════
+function toast(msg){
+  $('toast').textContent=msg; $('toast').classList.add('show');
+  setTimeout(()=>$('toast').classList.remove('show'),4500);
+}
+</script>
+</body>
+</html>
