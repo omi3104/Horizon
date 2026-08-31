@@ -206,7 +206,7 @@ class CompressionEngine:
                 try:
                     base = doc.extract_image(xref)
                     raw  = base["image"]
-                    self._recompress_image(doc, xref, raw, quality, max_px)
+                    self._recompress_image(page, xref, raw, quality, max_px)
                 except Exception:
                     pass
 
@@ -230,7 +230,7 @@ class CompressionEngine:
             doc.close()
 
     @staticmethod
-    def _recompress_image(doc, xref, raw_bytes, quality, max_px):
+    def _recompress_image(page, xref, raw_bytes, quality, max_px):
         from PIL import Image
         img = Image.open(io.BytesIO(raw_bytes))
         if img.mode in ("RGBA", "P", "LA", "CMYK"):
@@ -241,7 +241,14 @@ class CompressionEngine:
             img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=quality, optimize=True)
-        doc.update_stream(xref, buf.getvalue())
+        # NOTE: doc.update_stream(xref, ...) must NOT be used here — it Flate-
+        # compresses whatever bytes it's given and leaves the image XObject's
+        # /Filter, /ColorSpace, /Width, /Height, /BitsPerComponent as they were
+        # for the OLD (uncompressed/differently-sized) image. A reader then
+        # decodes the new JPEG bytes against the old metadata, which corrupts
+        # the page (colour noise + black blocks). Page.replace_image() updates
+        # all of that image metadata to match the new JPEG stream correctly.
+        page.replace_image(xref, stream=buf.getvalue())
 
     # ── pikepdf structural pass ───────────────────────────────────────────────
 
