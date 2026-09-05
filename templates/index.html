@@ -1272,6 +1272,9 @@ function applyEpEdit() {
       replacement: newText,
       fontsize: block.fontsize,
       color: block.color,
+      font: block.font,
+      bold: block.bold,
+      italic: block.italic,
       bbox: [block.x0, block.y0, block.x1, block.y1],
     };
     if (el) el.classList.add('edited');

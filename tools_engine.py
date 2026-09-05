@@ -421,6 +421,9 @@ class ToolsEngine:
                 block_text = ""
                 fontsize = 11.0
                 color = [0.0, 0.0, 0.0]
+                font = "helv"
+                bold = False
+                italic = False
                 for line in block.get("lines", []):
                     for span in line.get("spans", []):
                         block_text += span.get("text", "")
@@ -431,6 +434,10 @@ class ToolsEngine:
                             ((c >> 8) & 0xFF) / 255,
                             (c & 0xFF) / 255,
                         ]
+                        font = span.get("font", font)
+                        flags = span.get("flags", 0)
+                        bold = bool(flags & (1 << 4))
+                        italic = bool(flags & (1 << 1))
                     block_text += "\n"
                 block_text = block_text.strip()
                 if not block_text:
@@ -443,6 +450,9 @@ class ToolsEngine:
                     "text": block_text,
                     "fontsize": round(fontsize, 1),
                     "color": color,
+                    "font": font,
+                    "bold": bold,
+                    "italic": italic,
                     "page": i,
                 })
             pages.append({
@@ -469,10 +479,41 @@ class ToolsEngine:
         return data
 
     # ─── EDIT PDF — APPLY EDITS ───────────────────────────────────────────────
+    @staticmethod
+    def _base14_font(font_name, bold=False, italic=False):
+        """Map an embedded/original font name to the closest PyMuPDF base-14 font."""
+        name = (font_name or "").lower()
+        if "courier" in name or "mono" in name:
+            fam = "Courier"
+        elif "times" in name or "serif" in name or "georgia" in name or "cambria" in name or "garamond" in name:
+            fam = "Times"
+        else:
+            fam = "Helvetica"
+        if fam == "Times":
+            if bold and italic: return "Times-BoldItalic"
+            if bold:            return "Times-Bold"
+            if italic:          return "Times-Italic"
+            return "Times-Roman"
+        if fam == "Courier":
+            if bold and italic: return "Courier-BoldOblique"
+            if bold:            return "Courier-Bold"
+            if italic:          return "Courier-Oblique"
+            return "Courier"
+        if bold and italic: return "Helvetica-BoldOblique"
+        if bold:            return "Helvetica-Bold"
+        if italic:          return "Helvetica-Oblique"
+        return "Helvetica"
+
     def edit_apply(self, path, output, edits, cb=None):
         """
         Apply text edits to a PDF.
-        edits = list of {page, original, replacement, fontsize, color, bbox}
+        edits = list of {page, original, replacement, fontsize, color, bbox, font, bold, italic}
+
+        Each block's own bbox (always supplied by the editor UI) is the sole
+        redaction target — we never re-search the page for the original text,
+        because that text can legitimately repeat elsewhere on the page (a
+        header, a repeated label, a name in two places) and a page-wide
+        search+redact would wipe out every occurrence, not just the edited one.
         """
         import fitz
         from collections import defaultdict
@@ -491,6 +532,7 @@ class ToolsEngine:
             cb(5 + int(85 * page_num / max(n, 1)))
             page = doc[page_num]
 
+            pending = []  # (rect, replacement, fontsize, color, fontname)
             for edit in by_page[page_num]:
                 original    = edit.get("original", "")
                 replacement = edit.get("replacement", "")
@@ -499,41 +541,49 @@ class ToolsEngine:
                 color       = tuple(float(c) for c in raw_color)
                 bbox        = edit.get("bbox")   # [x0,y0,x1,y1]
 
-                if not original or original == replacement:
+                if not original or original == replacement or not bbox:
                     continue
 
-                # ① Collect rects BEFORE redacting so we know where to re-insert
-                insert_rect = None
-                if bbox:
-                    insert_rect = fitz.Rect(bbox[0], bbox[1], bbox[2], bbox[3])
-                else:
-                    # Search line by line to find the block area
-                    for line in original.split("\n"):
-                        line = line.strip()
-                        if line:
-                            rects = page.search_for(line)
-                            if rects:
-                                insert_rect = rects[0]
-                                break
+                rect = fitz.Rect(bbox[0], bbox[1], bbox[2], bbox[3])
+                page.add_redact_annot(rect, fill=(1, 1, 1))
+                fontname = self._base14_font(
+                    edit.get("font"), edit.get("bold", False), edit.get("italic", False)
+                )
+                pending.append((rect, replacement, fontsize, color, fontname))
 
-                # ② Redact original text — cover each line and the full bbox
-                for line in original.split("\n"):
-                    line = line.strip()
-                    if line:
-                        for r in page.search_for(line):
-                            page.add_redact_annot(r, fill=(1, 1, 1))
-                if bbox:
-                    page.add_redact_annot(
-                        fitz.Rect(bbox[0], bbox[1], bbox[2], bbox[3]),
-                        fill=(1, 1, 1)
+            if not pending:
+                continue
+
+            # Apply all redactions for this page first, so text inserted
+            # below isn't itself wiped out by a later redaction on the page.
+            page.apply_redactions()
+
+            for rect, replacement, fontsize, color, fontname in pending:
+                if not replacement.strip():
+                    continue
+                fs = fontsize
+                fitted = False
+                while fs > 6:
+                    rc = page.insert_textbox(
+                        rect, replacement, fontsize=fs, color=color,
+                        fontname=fontname, align=fitz.TEXT_ALIGN_LEFT,
                     )
-                page.apply_redactions()
-
-                # ③ Insert replacement text at original block position
-                if replacement.strip() and insert_rect:
-                    point = fitz.Point(insert_rect.x0, insert_rect.y1 - 2)
-                    page.insert_text(point, replacement,
-                                     fontsize=fontsize, color=color)
+                    if rc >= 0:
+                        fitted = True
+                        break
+                    fs -= 1
+                if not fitted:
+                    # insert_textbox draws nothing at all when the text can't
+                    # fit (verified: a negative return means zero was drawn,
+                    # never a partial/duplicate render) — so even at the
+                    # smallest size, grow the box downward rather than
+                    # silently losing the user's replacement text.
+                    grown = fitz.Rect(rect.x0, rect.y0, rect.x1, rect.y1 + 300)
+                    grown.intersect(page.rect)
+                    page.insert_textbox(
+                        grown, replacement, fontsize=6, color=color,
+                        fontname=fontname, align=fitz.TEXT_ALIGN_LEFT,
+                    )
 
         cb(90)
         doc.save(output, deflate=True)
